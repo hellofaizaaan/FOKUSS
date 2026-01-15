@@ -1,110 +1,60 @@
-import { useEffect, useRef, useState } from "react";
-import './App.css'
-
-const FOCUS_TIME = 25 * 60;
-const BREAK_TIME = 5 * 60;
+import { useEffect, useState } from "react";
+import './App.css';
 
 const ext = globalThis.chrome ?? globalThis.browser;
 
-if (!ext?.storage?.local) {
-  console.error("Extension storage API not available");
-}
-
-const storage = ext?.storage?.local;
-
-function storageGet(keys) {
-  return new Promise((resolve) => {
-    try {
-      const result = storage.get(keys);
-
-      if (result instanceof Promise) {
-        result.then(resolve);
-      } else {
-        storage.get(keys, resolve);
-      }
-    } catch {
-      resolve({});
-    }
-  });
-}
-
-function storageSet(data) {
-  return new Promise((resolve) => {
-    try {
-      const result = storage.set(data);
-
-      if (result instanceof Promise) {
-        result.then(resolve);
-      } else {
-        storage.set(data, resolve);
-      }
-    } catch {
-      resolve();
-    }
-  });
-}
-
 export default function App() {
-  const [time, setTime] = useState(FOCUS_TIME);
-  const [running, setRunning] = useState(false);
-  const [focus, setFocus] = useState(true);
+  const [state, setState] = useState({
+    timeLeft: 0,
+    isRunning: false,
+    isFocus: true
+  });
 
-  const intervalRef = useRef(null);
+  async function fetchState() {
+    try {
+      const res = await ext.runtime.sendMessage({
+        type: "GET_STATE"
+      });
+      if (res) setState(res);
+    } catch (e) {
+      console.warn("Background not ready yet");
+    }
+  }
+
   useEffect(() => {
-    if (!storage) return;
+    let ready = false;
 
-    storageGet(["timeLeft", "isRunning", "isFocus", "lastUpdated"]).then(
-      (data) => {
-        if (!data?.lastUpdated) return;
-
-        let newTime = data.timeLeft ?? FOCUS_TIME;
-
-        if (data.isRunning) {
-          const elapsed =
-            Math.floor((Date.now() - data.lastUpdated) / 1000);
-          newTime = Math.max(newTime - elapsed, 0);
-        }
-
-        setTime(newTime);
-        setRunning(Boolean(data.isRunning));
-        setFocus(Boolean(data.isFocus));
+    async function init() {
+      try {
+        await ext.runtime.sendMessage({ type: "GET_STATE" });
+        ready = true;
+        fetchState();
+      } catch {
+        setTimeout(init, 200);
       }
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!storage) return;
-
-    storageSet({
-      timeLeft: time,
-      isRunning: running,
-      isFocus: focus,
-      lastUpdated: Date.now()
-    });
-  }, [time, running, focus]);
-
-  useEffect(() => {
-    if (!running) {
-      clearInterval(intervalRef.current);
-      return;
     }
 
-    intervalRef.current = setInterval(() => {
-      setTime((t) => {
-        if (t <= 1) {
-          const nextFocus = !focus;
-          setFocus(nextFocus);
-          return nextFocus ? FOCUS_TIME : BREAK_TIME;
-        }
-        return t - 1;
-      });
+    init();
+
+    const id = setInterval(() => {
+      if (ready) fetchState();
     }, 1000);
 
-    return () => clearInterval(intervalRef.current);
-  }, [running, focus]);
+    return () => clearInterval(id);
+  }, []);
 
-  const min = Math.floor(time / 60);
-  const sec = time % 60;
+
+  async function send(type) {
+    try {
+      await ext.runtime.sendMessage({ type });
+      fetchState();
+    } catch (e) {
+      console.warn("Failed to send message:", type, e);
+    }
+  }
+
+  const min = Math.floor(state.timeLeft / 60);
+  const sec = state.timeLeft % 60;
 
   return (
     <div className='container'>
@@ -115,16 +65,12 @@ export default function App() {
       </div>
 
       <div className='buttons'>
-        <button onClick={() => setRunning(true)}>Start</button>
-        <button onClick={() => setRunning(false)}>Pause</button>
-        <button onClick={() => {
-          setRunning(false);
-          setFocus(true);
-          setTime(FOCUS_TIME);
-        }}>Reset</button>
+        <button onClick={() => send("START")}>Start</button>
+        <button onClick={() => send("PAUSE")}>Pause</button>
+        <button onClick={() => send("RESET")}>Reset</button>
       </div>
 
-      <p className='mode'>{focus ? "Focus Timer" : "Break Time"}</p>
+      <p className='mode'>{state.isFocus ? "Focus Timer" : "Break Time"}</p>
     </div>
-  )
+  );
 }

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "FOKUSS - Pomodoro",
+  "version": "1.0.0",
+  "description": "Minimal and modern pomodoro app",
+
+  "icons": {
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
+  },
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "permissions": ["storage", "alarms"],
+
+  "action": {
+    "default_popup": "popup.html"
+  },
+
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  }
+}
