@@ -5,9 +5,9 @@
     "description": "Minimal and modern pomodoro app",
 
     "icons": {
-        "16": "",
-        "48": "",
-        "128": ""
+        "16": "logo.png",
+        "48": "logo.png",
+        "128": "logo.png"
     },
 
     "action": {
