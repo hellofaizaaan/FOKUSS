@@ -10,6 +10,8 @@
         "128": "logo.png"
     },
 
+    "permissions": ["storage"],
+
     "action": {
         "default_popup": "popup.html"
     },
