@@ -1,20 +1,25 @@
-const FOCUS_TIME = 25 * 60;
-const BREAK_TIME = 5 * 60;
+let settings = {
+  focusMinutes: 25,
+  breakMinutes: 5,
+  autoStartBreak: true,
+  autoStartFocus: true,
+};
 
 const ext = self.chrome ?? self.browser;
 
 let state = {
-  timeLeft: FOCUS_TIME,
+  timeLeft: settings.focusMinutes * 60,
   isRunning: false,
   isFocus: true,
-  lastUpdate: Date.now()
+  lastUpdate: Date.now(),
 };
 
-ext.storage.local.get(null, (data) => {
-  if (data?.timeLeft !== undefined) {
-    state = { ...state, ...data };
+ext.storage.local.get(
+  ["focusMinutes", "breakMinutes", "autoStartBreak", "autoStartFocus"],
+  (data) => {
+    settings = { ...settings, ...data };
   }
-});
+);
 
 function persist() {
   ext.storage.local.set(state);
@@ -34,8 +39,12 @@ function updateTime() {
   if (state.timeLeft <= 0) {
     state.isFocus = !state.isFocus;
     state.timeLeft = state.isFocus
-      ? FOCUS_TIME
-      : BREAK_TIME;
+      ? settings.focusMinutes * 60
+      : settings.breakMinutes * 60;
+
+    state.isRunning = state.isFocus
+      ? settings.autoStartFocus
+      : settings.autoStartBreak;
   }
 
   persist();
@@ -52,19 +61,22 @@ ext.runtime.onMessage.addListener((msg, _, sendResponse) => {
       state.lastUpdate = Date.now();
       ext.alarms.create("wake", { periodInMinutes: 1 });
       persist();
+      sendResponse({ ok: true });
       break;
 
     case "PAUSE":
       state.isRunning = false;
       persist();
+      sendResponse({ ok: true });
       break;
 
     case "RESET":
       state.isRunning = false;
       state.isFocus = true;
-      state.timeLeft = FOCUS_TIME;
+      state.timeLeft = settings.focusMinutes * 60;
       state.lastUpdate = Date.now();
       persist();
+      sendResponse({ ok: true });
       break;
 
     case "GET_STATE":

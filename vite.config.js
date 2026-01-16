@@ -7,7 +7,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         newtab: "index.html",
-        popup: "popup.html"
+        popup: "popup.html",
+        settings: "settings.html"
       }
     }
   }

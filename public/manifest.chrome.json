@@ -20,6 +20,8 @@
     "default_popup": "popup.html"
   },
 
+  "options_page": "settings.html",
+
   "chrome_url_overrides": {
     "newtab": "index.html"
   }
